@@ -2,10 +2,10 @@
   "name": "truqui",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "mkdir -p vendor && cp node_modules/gun/gun.js vendor/gun.js"
+    "start": "npx serve .",
+    "deploy": "wrangler pages deploy . --project-name=truqui"
   },
-  "dependencies": {
-    "gun": "^0.2020.1240"
+  "devDependencies": {
+    "wrangler": "^4.0.0"
   }
 }

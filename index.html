@@ -11,12 +11,25 @@
     <h1>Truqui</h1>
 
     <section id="lobby">
-      <p id="status">Truco argentino online</p>
+      <p id="status">Truco argentino P2P</p>
       <button id="btn-start" type="button">Iniciar partida</button>
+
       <div id="share-box" hidden>
-        <p>Compartí este link:</p>
+        <p id="share-label">Compartí este link con tu rival:</p>
         <input id="share-link" type="text" readonly>
         <button id="btn-copy" type="button">Copiar</button>
+      </div>
+
+      <div id="answer-box" hidden>
+        <p id="answer-label">Pegá el link de respuesta del rival:</p>
+        <input id="answer-link" type="text" placeholder="http://…?r=…&a=…">
+        <button id="btn-connect" type="button">Conectar</button>
+      </div>
+
+      <div id="response-box" hidden>
+        <p>Mandale este link de vuelta al host:</p>
+        <input id="response-link" type="text" readonly>
+        <button id="btn-copy-response" type="button">Copiar respuesta</button>
       </div>
     </section>
 
@@ -32,8 +45,8 @@
     </section>
   </main>
 
-  <script src="/vendor/gun.js"></script>
   <script src="game.js"></script>
+  <script src="sync.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

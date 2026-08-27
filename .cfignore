@@ -1,0 +1,7 @@
+node_modules/
+vendor/
+data/
+.git/
+.wrangler/
+package-lock.json
+*.md

@@ -43,6 +43,40 @@ button.danger:hover { background: #c0392b; }
 
 #status { color: #888; margin-bottom: 1rem; }
 
+#answer-box,
+#response-box {
+  margin-top: 1.5rem;
+}
+
+#answer-box p,
+#response-box p {
+  color: #888;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+#answer-link {
+  width: 100%;
+  padding: 0.6rem;
+  background: #222;
+  border: 1px solid #333;
+  color: #eee;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+#response-link {
+  width: 100%;
+  padding: 0.6rem;
+  background: #222;
+  border: 1px solid #333;
+  color: #eee;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
 #share-box {
   margin-top: 1.5rem;
 }

@@ -1,14 +1,13 @@
-const gun = Gun({ peers: [`${location.origin}/gun`], localStorage: true });
 const playerId = localStorage.getItem('truqui-id') || crypto.randomUUID();
 localStorage.setItem('truqui-id', playerId);
 
 const params = new URLSearchParams(location.search);
-let roomId = params.get('r');
+const link = parseLink();
+let roomId = link.r || params.get('r');
 let mySlot = null;
-let roomRef = null;
+let p2p = null;
+let roomState = null;
 let lastUpdatedAt = 0;
-let joinTimer = null;
-let pollTimer = null;
 
 const $ = (id) => document.getElementById(id);
 const lobby = $('lobby');
@@ -16,18 +15,16 @@ const game = $('game');
 const statusEl = $('status');
 const shareBox = $('share-box');
 const shareLink = $('share-link');
+const answerBox = $('answer-box');
+const answerLink = $('answer-link');
+const responseBox = $('response-box');
+const responseLink = $('response-link');
 const scoresEl = $('scores');
 const opponentArea = $('opponent-area');
 const trickArea = $('trick-area');
 const myHand = $('my-hand');
 const actionsEl = $('actions');
 const msgEl = $('msg');
-
-function roomUrl(id) {
-  const u = new URL(location.href);
-  u.searchParams.set('r', id);
-  return u.toString();
-}
 
 function setStatus(text) {
   statusEl.textContent = text;
@@ -47,131 +44,121 @@ function showGame() {
   game.hidden = false;
 }
 
-function connectRoom(id) {
+function initP2P(id) {
   roomId = id;
-  roomRef = gun.get('truqui-v2').get(id);
-  roomRef.get('state').on((raw) => {
-    if (!raw || typeof raw !== 'string') return;
-    try {
-      render(JSON.parse(raw));
-    } catch {
-      /* ignore corrupt state */
-    }
-  });
-  startPolling();
-}
-
-function apiUrl() {
-  return `/api/room/${roomId}`;
-}
-
-async function fetchRoom() {
-  const res = await fetch(apiUrl(), { cache: 'no-store' });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data && data.players ? data : null;
-}
-
-function startPolling() {
-  clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    const room = await fetchRoom();
-    if (room) render(room);
-  }, 400);
-}
-
-async function readRoom(cb) {
-  cb(await fetchRoom());
-}
-
-async function writeRoom(data) {
-  data.updatedAt = Date.now();
-  const body = JSON.stringify(data);
-  roomRef.get('state').put(body);
-  await fetch(apiUrl(), {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body,
+  p2p = createP2P(id, {
+    onState: (data) => render(data),
+    onStatus: setStatus,
+    onOpen: onConnected,
   });
 }
 
-function joinRoom() {
-  clearTimeout(joinTimer);
+function onConnected() {
+  responseBox.hidden = true;
+  answerBox.hidden = true;
 
-  readRoom((room) => {
-    if (!room?.players || Object.keys(room.players).length === 0) {
-      setStatus('Conectando…');
-      joinTimer = setTimeout(joinRoom, 400);
-      return;
-    }
-
-    const players = { ...room.players };
-
-    if (players[playerId]) {
-      mySlot = players[playerId].slot;
-      return;
-    }
-
-    const taken = Object.values(players).map((p) => p.slot);
-    if (taken.length >= 2) {
-      setStatus('Partida llena');
-      return;
-    }
-
-    mySlot = taken.includes(0) ? 1 : 0;
-    players[playerId] = { slot: mySlot, joinedAt: Date.now() };
-    writeRoom({ ...room, players });
-  });
-}
-
-function maybeStartGame(data) {
-  if (data.status !== 'waiting') return;
-  if (Object.keys(data.players).length < 2) return;
-  if (mySlot !== 0) return;
-
-  readRoom((room) => {
-    if (room?.status !== 'waiting') return;
-    if (Object.keys(room.players).length < 2) return;
+  if (p2p.role === 'host') {
+    mySlot = 0;
+    const room = roomState || initialRoomState();
+    room.players[playerId] = { slot: 0, joinedAt: Date.now() };
+    room.players['_guest'] = { slot: 1, joinedAt: Date.now() };
     writeRoom({ ...room, ...newGameState([0, 0]) });
-  });
+  } else {
+    mySlot = 1;
+    setStatus('Conectado — arrancando…');
+  }
 }
 
-function startPartida() {
+function writeRoom(data) {
+  data.updatedAt = Date.now();
+  roomState = data;
+  p2p?.sendState(data);
+  render(data);
+}
+
+function readRoom(cb) {
+  cb(roomState);
+}
+
+async function startPartida() {
   const id = crypto.randomUUID().slice(0, 8);
-  history.replaceState(null, '', roomUrl(id));
-  connectRoom(id);
+  initP2P(id);
+  sessionStorage.setItem(`truqui-role-${id}`, 'host');
 
-  const room = initialRoomState();
-  room.players[playerId] = { slot: 0, joinedAt: Date.now() };
+  const inviteUrl = await p2p.createInvite();
+  history.replaceState(null, '', inviteUrl);
+
+  roomState = initialRoomState();
+  roomState.players[playerId] = { slot: 0, joinedAt: Date.now() };
   mySlot = 0;
-  writeRoom(room);
 
-  shareLink.value = roomUrl(id);
+  shareLink.value = inviteUrl;
   shareBox.hidden = false;
+  answerBox.hidden = false;
   $('btn-start').hidden = true;
+  $('share-label').textContent = 'Compartí este link con tu rival:';
   setStatus('Esperando rival…');
 }
 
+async function joinFromInvite(offerPacked) {
+  if (!offerPacked) return;
+  initP2P(roomId);
+  mySlot = 1;
+
+  shareBox.hidden = true;
+  $('btn-start').hidden = true;
+
+  try {
+    const answerUrl = await p2p.joinInvite(offerPacked);
+    responseLink.value = answerUrl;
+    responseBox.hidden = false;
+    setStatus('Mandale el link de respuesta al host');
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
+  }
+}
+
+async function restoreHostSession() {
+  initP2P(roomId);
+  mySlot = 0;
+  $('btn-start').hidden = true;
+  shareBox.hidden = false;
+  answerBox.hidden = false;
+  shareLink.value = location.href;
+  setStatus('Esperando rival…');
+}
+
+async function hostAcceptAnswer(url) {
+  if (!p2p) return;
+  try {
+    await p2p.acceptAnswerFromUrl(url.trim());
+    setStatus('Rival conectado');
+  } catch {
+    setStatus('Link de respuesta inválido');
+  }
+}
+
 function render(data) {
-  if (!data || !data.players) return;
+  if (!data?.players) return;
   if (data.updatedAt && data.updatedAt <= lastUpdatedAt) return;
   lastUpdatedAt = data.updatedAt || 0;
+  roomState = data;
 
-  if (!data.players[playerId]) {
-    joinRoom();
+  if (!data.players[playerId] && !data.players['_guest']) return;
+
+  if (data.players[playerId]) {
+    mySlot = data.players[playerId].slot;
+  } else if (data.players['_guest'] && mySlot === 1) {
+    /* guest slot */
+  } else {
     return;
   }
 
-  mySlot = data.players[playerId].slot;
-  maybeStartGame(data);
-  const playerCount = Object.keys(data.players).length;
   const rivalSlot = mySlot === 0 ? 1 : 0;
 
   if (data.status === 'waiting') {
     showLobby();
-    shareBox.hidden = playerCount < 1;
-    if (mySlot === 0) shareLink.value = roomUrl(roomId);
-    setStatus(playerCount < 2 ? 'Esperando rival…' : 'Arrancando…');
     return;
   }
 
@@ -179,9 +166,7 @@ function render(data) {
   const hand = data.hand;
   if (!hand) return;
 
-  const myScore = data.scores[mySlot];
-  const rivalScore = data.scores[rivalSlot];
-  scoresEl.textContent = `Vos: ${myScore} — Rival: ${rivalScore}`;
+  scoresEl.textContent = `Vos: ${data.scores[mySlot]} — Rival: ${data.scores[rivalSlot]}`;
 
   opponentArea.textContent = hand.phase === 'playing'
     ? (hand.turn === rivalSlot ? 'Turno del rival' : 'Turno tuyo')
@@ -195,13 +180,10 @@ function render(data) {
 
 function renderTrick(hand, mySlot, rivalSlot) {
   trickArea.innerHTML = '';
-
   const mine = hand.trickCards[mySlot];
   const theirs = hand.trickCards[rivalSlot];
-
   if (theirs) trickArea.appendChild(cardEl(theirs, { played: true }));
   else trickArea.appendChild(backEl());
-
   if (mine) trickArea.appendChild(cardEl(mine, { played: true }));
 }
 
@@ -212,9 +194,7 @@ function renderHand(hand, mySlot) {
 
   for (const id of cards) {
     const el = cardEl(id, { disabled: !canPlay });
-    if (canPlay) {
-      el.addEventListener('click', () => playCard(id));
-    }
+    if (canPlay) el.addEventListener('click', () => playCard(id));
     myHand.appendChild(el);
   }
 }
@@ -227,9 +207,7 @@ function renderActions(data, hand, mySlot, rivalSlot) {
     setMsg(w === mySlot ? '¡Ganaste la partida!' : 'Perdiste la partida.');
     const btn = document.createElement('button');
     btn.textContent = 'Nueva partida';
-    btn.addEventListener('click', () => {
-      readRoom((room) => writeRoom({ ...room, ...newGameState([0, 0]) }));
-    });
+    btn.addEventListener('click', () => writeRoom({ ...data, ...newGameState([0, 0]) }));
     actionsEl.appendChild(btn);
     return;
   }
@@ -240,9 +218,7 @@ function renderActions(data, hand, mySlot, rivalSlot) {
     if (mySlot === 0) {
       const btn = document.createElement('button');
       btn.textContent = 'Siguiente mano';
-      btn.addEventListener('click', () => {
-        readRoom((room) => writeRoom(finishHand(room)));
-      });
+      btn.addEventListener('click', () => writeRoom(finishHand(data)));
       actionsEl.appendChild(btn);
     }
     return;
@@ -279,9 +255,7 @@ function renderActions(data, hand, mySlot, rivalSlot) {
 function renderMessage(data, hand, mySlot, rivalSlot) {
   if (data.status === 'finished' || hand.phase === 'hand_end' || hand.trucoPending) return;
   if (hand.phase !== 'playing') return;
-
-  if (hand.turn === mySlot) setMsg('Jugá una carta');
-  else setMsg('Esperando al rival…');
+  setMsg(hand.turn === mySlot ? 'Jugá una carta' : 'Esperando al rival…');
 }
 
 function cardEl(id, opts = {}) {
@@ -300,12 +274,10 @@ function backEl() {
 }
 
 function updateHand(mutator) {
-  readRoom((room) => {
-    if (!room?.hand) return;
-    const next = structuredClone(room);
-    next.hand = mutator(room.hand);
-    writeRoom(next);
-  });
+  if (!roomState?.hand) return;
+  const next = structuredClone(roomState);
+  next.hand = mutator(roomState.hand);
+  writeRoom(next);
 }
 
 function playCard(cardId) {
@@ -320,19 +292,32 @@ function respondTruco(accept) {
   updateHand((hand) => applyTrucoResponse(hand, mySlot, accept));
 }
 
+async function copyBtn(btn, text) {
+  await navigator.clipboard.writeText(text);
+  const prev = btn.textContent;
+  btn.textContent = 'Copiado';
+  setTimeout(() => { btn.textContent = prev; }, 1500);
+}
+
 $('btn-start').addEventListener('click', startPartida);
+$('btn-copy').addEventListener('click', () => copyBtn($('btn-copy'), shareLink.value));
+$('btn-copy-response').addEventListener('click', () => copyBtn($('btn-copy-response'), responseLink.value));
+$('btn-connect').addEventListener('click', () => hostAcceptAnswer(answerLink.value));
 
-$('btn-copy').addEventListener('click', async () => {
-  await navigator.clipboard.writeText(shareLink.value);
-  $('btn-copy').textContent = 'Copiado';
-  setTimeout(() => { $('btn-copy').textContent = 'Copiar'; }, 1500);
-});
-
-if (roomId) {
-  connectRoom(roomId);
-  joinRoom();
-  shareBox.hidden = false;
-  shareLink.value = roomUrl(roomId);
-  setStatus('Uniéndote a la partida…');
+if (roomId && link.o && sessionStorage.getItem(`truqui-role-${roomId}`) === 'host') {
+  restoreHostSession();
+} else if (roomId && link.o) {
+  joinFromInvite(link.o);
+} else if (roomId && link.a) {
+  initP2P(roomId);
+  mySlot = 0;
+  $('btn-start').hidden = true;
+  shareBox.hidden = true;
+  answerBox.hidden = true;
+  p2p.acceptAnswer(link.a)
+    .then(() => setStatus('Rival conectado'))
+    .catch(() => setStatus('Abrí esto en la misma pestaña donde creaste la partida'));
+} else if (roomId) {
+  setStatus('Link incompleto — copiá el link completo del host (con &o=…)');
   $('btn-start').hidden = true;
 }
