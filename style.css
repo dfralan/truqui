@@ -1,0 +1,133 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #eee;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+main {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+}
+
+button {
+  background: #2ecc71;
+  color: #111;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover { background: #27ae60; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.secondary { background: #444; color: #eee; }
+button.secondary:hover { background: #555; }
+button.danger { background: #e74c3c; color: #fff; }
+button.danger:hover { background: #c0392b; }
+
+#status { color: #888; margin-bottom: 1rem; }
+
+#share-box {
+  margin-top: 1.5rem;
+}
+
+#share-box p { color: #888; font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+#share-link {
+  width: 100%;
+  padding: 0.6rem;
+  background: #222;
+  border: 1px solid #333;
+  color: #eee;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+#scores {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 1rem;
+}
+
+#table { margin: 1rem 0; }
+
+#opponent-area {
+  min-height: 2rem;
+  color: #666;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+#trick-area {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 100px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.card {
+  width: 64px;
+  height: 96px;
+  background: #fff;
+  color: #111;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid #ddd;
+  transition: transform 0.1s;
+}
+
+.card:hover:not(.back):not(.disabled) { transform: translateY(-4px); }
+.card.disabled { opacity: 0.5; cursor: not-allowed; }
+.card.back { background: #1a5276; border-color: #154360; cursor: default; }
+.card.played { cursor: default; }
+.card .suit { font-size: 1.4rem; line-height: 1; }
+
+#my-hand {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+#actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+#msg {
+  margin-top: 1rem;
+  color: #f1c40f;
+  font-size: 0.9rem;
+  min-height: 1.2rem;
+}

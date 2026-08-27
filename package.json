@@ -1,0 +1,11 @@
+{
+  "name": "truqui",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "mkdir -p vendor && cp node_modules/gun/gun.js vendor/gun.js"
+  },
+  "dependencies": {
+    "gun": "^0.2020.1240"
+  }
+}
