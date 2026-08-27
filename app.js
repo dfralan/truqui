@@ -10,6 +10,8 @@ let roomState = null;
 let lastUpdatedAt = 0;
 
 const $ = (id) => document.getElementById(id);
+const layout = $('layout');
+const hero = $('hero');
 const lobby = $('lobby');
 const game = $('game');
 const statusEl = $('status');
@@ -19,6 +21,10 @@ const answerBox = $('answer-box');
 const answerLink = $('answer-link');
 const responseBox = $('response-box');
 const responseLink = $('response-link');
+const chatPanel = $('chat-panel');
+const chatLog = $('chat-log');
+const chatForm = $('chat-form');
+const chatInput = $('chat-input');
 const scoresEl = $('scores');
 const opponentArea = $('opponent-area');
 const trickArea = $('trick-area');
@@ -42,6 +48,37 @@ function showLobby() {
 function showGame() {
   lobby.hidden = true;
   game.hidden = false;
+  hero.classList.add('compact');
+}
+
+function enableChat() {
+  layout.classList.add('with-chat');
+  chatPanel.hidden = false;
+  chatInput.disabled = false;
+}
+
+function appendChat({ text, from, ts, system }) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg' + (system ? ' system' : from === mySlot ? ' mine' : '');
+  if (system) {
+    el.textContent = text;
+  } else {
+    const who = from === mySlot ? 'VOS' : 'RIVAL';
+    el.innerHTML = `<span class="who">${who}</span>${escapeHtml(text)}`;
+  }
+  chatLog.appendChild(el);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function sendChatMessage(text) {
+  const t = text.trim();
+  if (!t || !p2p?.isOpen()) return;
+  p2p.sendChat(t, mySlot);
+  appendChat({ text: t, from: mySlot, ts: Date.now() });
 }
 
 function initP2P(id) {
@@ -50,12 +87,15 @@ function initP2P(id) {
     onState: (data) => render(data),
     onStatus: setStatus,
     onOpen: onConnected,
+    onChat: (msg) => appendChat(msg),
   });
 }
 
 function onConnected() {
   responseBox.hidden = true;
   answerBox.hidden = true;
+  enableChat();
+  appendChat({ text: '— CONECTADO P2P —', system: true });
 
   if (p2p.role === 'host') {
     mySlot = 0;
@@ -65,7 +105,7 @@ function onConnected() {
     writeRoom({ ...room, ...newGameState([0, 0]) });
   } else {
     mySlot = 1;
-    setStatus('Conectado — arrancando…');
+    setStatus('CONECTADO — ARRANCANDO…');
   }
 }
 
@@ -84,6 +124,7 @@ async function startPartida() {
   const id = crypto.randomUUID().slice(0, 8);
   initP2P(id);
   sessionStorage.setItem(`truqui-role-${id}`, 'host');
+  hero.classList.add('compact');
 
   const inviteUrl = await p2p.createInvite();
   history.replaceState(null, '', inviteUrl);
@@ -96,14 +137,14 @@ async function startPartida() {
   shareBox.hidden = false;
   answerBox.hidden = false;
   $('btn-start').hidden = true;
-  $('share-label').textContent = 'Compartí este link con tu rival:';
-  setStatus('Esperando rival…');
+  setStatus('ESPERANDO RIVAL…');
 }
 
 async function joinFromInvite(offerPacked) {
   if (!offerPacked) return;
   initP2P(roomId);
   mySlot = 1;
+  hero.classList.add('compact');
 
   shareBox.hidden = true;
   $('btn-start').hidden = true;
@@ -112,30 +153,31 @@ async function joinFromInvite(offerPacked) {
     const answerUrl = await p2p.joinInvite(offerPacked);
     responseLink.value = answerUrl;
     responseBox.hidden = false;
-    setStatus('Mandale el link de respuesta al host');
+    setStatus('MANDALE EL LINK DE RESPUESTA AL HOST');
   } catch (err) {
     console.error(err);
-    setStatus(`Error: ${err.message}`);
+    setStatus(`ERROR: ${err.message}`);
   }
 }
 
 async function restoreHostSession() {
   initP2P(roomId);
   mySlot = 0;
+  hero.classList.add('compact');
   $('btn-start').hidden = true;
   shareBox.hidden = false;
   answerBox.hidden = false;
   shareLink.value = location.href;
-  setStatus('Esperando rival…');
+  setStatus('ESPERANDO RIVAL…');
 }
 
 async function hostAcceptAnswer(url) {
   if (!p2p) return;
   try {
     await p2p.acceptAnswerFromUrl(url.trim());
-    setStatus('Rival conectado');
+    setStatus('RIVAL CONECTADO');
   } catch {
-    setStatus('Link de respuesta inválido');
+    setStatus('LINK DE RESPUESTA INVÁLIDO');
   }
 }
 
@@ -150,7 +192,7 @@ function render(data) {
   if (data.players[playerId]) {
     mySlot = data.players[playerId].slot;
   } else if (data.players['_guest'] && mySlot === 1) {
-    /* guest slot */
+    /* guest */
   } else {
     return;
   }
@@ -166,10 +208,10 @@ function render(data) {
   const hand = data.hand;
   if (!hand) return;
 
-  scoresEl.textContent = `Vos: ${data.scores[mySlot]} — Rival: ${data.scores[rivalSlot]}`;
+  scoresEl.innerHTML = `<span>VOS: ${data.scores[mySlot]}</span><span>RIVAL: ${data.scores[rivalSlot]}</span>`;
 
   opponentArea.textContent = hand.phase === 'playing'
-    ? (hand.turn === rivalSlot ? 'Turno del rival' : 'Turno tuyo')
+    ? (hand.turn === rivalSlot ? '▶ TURNO DEL RIVAL' : '▶ TURNO TUYO')
     : '';
 
   renderTrick(hand, mySlot, rivalSlot);
@@ -204,9 +246,10 @@ function renderActions(data, hand, mySlot, rivalSlot) {
 
   if (data.status === 'finished') {
     const w = data.scores[0] >= 30 ? 0 : 1;
-    setMsg(w === mySlot ? '¡Ganaste la partida!' : 'Perdiste la partida.');
+    setMsg(w === mySlot ? '¡GANASTE LA PARTIDA!' : 'PERDISTE LA PARTIDA.');
     const btn = document.createElement('button');
-    btn.textContent = 'Nueva partida';
+    btn.className = 'btn btn-primary';
+    btn.textContent = 'NUEVA PARTIDA';
     btn.addEventListener('click', () => writeRoom({ ...data, ...newGameState([0, 0]) }));
     actionsEl.appendChild(btn);
     return;
@@ -214,10 +257,11 @@ function renderActions(data, hand, mySlot, rivalSlot) {
 
   if (hand.phase === 'hand_end') {
     const iWon = hand.winner === mySlot;
-    setMsg(iWon ? `Ganaste la mano (+${hand.handPoints})` : `Perdiste la mano (+${hand.handPoints})`);
+    setMsg(iWon ? `GANASTE LA MANO (+${hand.handPoints})` : `PERDISTE LA MANO (+${hand.handPoints})`);
     if (mySlot === 0) {
       const btn = document.createElement('button');
-      btn.textContent = 'Siguiente mano';
+      btn.className = 'btn btn-cyan';
+      btn.textContent = 'SIGUIENTE MANO';
       btn.addEventListener('click', () => writeRoom(finishHand(data)));
       actionsEl.appendChild(btn);
     }
@@ -226,27 +270,28 @@ function renderActions(data, hand, mySlot, rivalSlot) {
 
   if (hand.trucoPending) {
     const caller = hand.trucoCaller;
-    const level = TRUCO_NAMES[hand.trucoPending];
+    const level = TRUCO_NAMES[hand.trucoPending].toUpperCase();
     if (caller !== mySlot) {
-      setMsg(`${level}! ¿Querés?`);
+      setMsg(`${level}! ¿QUERÉS?`);
       const yes = document.createElement('button');
-      yes.textContent = 'Quiero';
+      yes.className = 'btn btn-cyan';
+      yes.textContent = 'QUIERO';
       yes.addEventListener('click', () => respondTruco(true));
       const no = document.createElement('button');
-      no.textContent = 'No quiero';
-      no.className = 'danger';
+      no.className = 'btn btn-danger';
+      no.textContent = 'NO QUIERO';
       no.addEventListener('click', () => respondTruco(false));
       actionsEl.append(yes, no);
     } else {
-      setMsg(`Cantaste ${level}. Esperando respuesta…`);
+      setMsg(`CANTASTE ${level}. ESPERANDO…`);
     }
     return;
   }
 
   if (hand.phase === 'playing' && hand.turn === mySlot && hand.truco < 3) {
     const btn = document.createElement('button');
-    btn.className = 'secondary';
-    btn.textContent = hand.truco === 0 ? 'Truco' : hand.truco === 1 ? 'Retruco' : 'Vale 4';
+    btn.className = 'btn btn-magenta';
+    btn.textContent = hand.truco === 0 ? 'TRUCO' : hand.truco === 1 ? 'RETRUCO' : 'VALE 4';
     btn.addEventListener('click', callTruco);
     actionsEl.appendChild(btn);
   }
@@ -255,7 +300,7 @@ function renderActions(data, hand, mySlot, rivalSlot) {
 function renderMessage(data, hand, mySlot, rivalSlot) {
   if (data.status === 'finished' || hand.phase === 'hand_end' || hand.trucoPending) return;
   if (hand.phase !== 'playing') return;
-  setMsg(hand.turn === mySlot ? 'Jugá una carta' : 'Esperando al rival…');
+  setMsg(hand.turn === mySlot ? 'JUGÁ UNA CARTA' : 'ESPERANDO AL RIVAL…');
 }
 
 function cardEl(id, opts = {}) {
@@ -264,12 +309,14 @@ function cardEl(id, opts = {}) {
   el.className = 'card' + (opts.played ? ' played' : '') + (opts.disabled ? ' disabled' : '');
   el.innerHTML = `<span>${RANK_LABELS[c.rank]}</span><span class="suit">${c.symbol}</span>`;
   el.style.color = c.color;
+  el.style.borderColor = c.color === '#111' ? '#fff' : c.color;
   return el;
 }
 
 function backEl() {
   const el = document.createElement('div');
   el.className = 'card back';
+  el.textContent = '?';
   return el;
 }
 
@@ -285,17 +332,20 @@ function playCard(cardId) {
 }
 
 function callTruco() {
+  const level = roomState?.hand?.truco === 0 ? 'TRUCO!' : roomState?.hand?.truco === 1 ? 'RETRUCO!' : 'VALE 4!';
   updateHand((hand) => applyTrucoCall(hand, mySlot));
+  sendChatMessage(level);
 }
 
 function respondTruco(accept) {
   updateHand((hand) => applyTrucoResponse(hand, mySlot, accept));
+  sendChatMessage(accept ? 'QUIERO' : 'NO QUIERO');
 }
 
 async function copyBtn(btn, text) {
   await navigator.clipboard.writeText(text);
   const prev = btn.textContent;
-  btn.textContent = 'Copiado';
+  btn.textContent = 'COPIADO';
   setTimeout(() => { btn.textContent = prev; }, 1500);
 }
 
@@ -304,6 +354,12 @@ $('btn-copy').addEventListener('click', () => copyBtn($('btn-copy'), shareLink.v
 $('btn-copy-response').addEventListener('click', () => copyBtn($('btn-copy-response'), responseLink.value));
 $('btn-connect').addEventListener('click', () => hostAcceptAnswer(answerLink.value));
 
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  sendChatMessage(chatInput.value);
+  chatInput.value = '';
+});
+
 if (roomId && link.o && sessionStorage.getItem(`truqui-role-${roomId}`) === 'host') {
   restoreHostSession();
 } else if (roomId && link.o) {
@@ -311,13 +367,15 @@ if (roomId && link.o && sessionStorage.getItem(`truqui-role-${roomId}`) === 'hos
 } else if (roomId && link.a) {
   initP2P(roomId);
   mySlot = 0;
+  hero.classList.add('compact');
   $('btn-start').hidden = true;
   shareBox.hidden = true;
   answerBox.hidden = true;
   p2p.acceptAnswer(link.a)
-    .then(() => setStatus('Rival conectado'))
-    .catch(() => setStatus('Abrí esto en la misma pestaña donde creaste la partida'));
+    .then(() => setStatus('RIVAL CONECTADO'))
+    .catch(() => setStatus('ABRÍ EN LA PESTAÑA DONDE CREASTE LA PARTIDA'));
 } else if (roomId) {
-  setStatus('Link incompleto — copiá el link completo del host (con &o=…)');
+  setStatus('LINK INCOMPLETO — PEDILE AL HOST EL LINK CON &o=');
   $('btn-start').hidden = true;
+  hero.classList.add('compact');
 }

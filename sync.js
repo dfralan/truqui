@@ -94,7 +94,7 @@ function hostKey(roomId) {
   return `truqui-host-${roomId}`;
 }
 
-function createP2P(roomId, { onState, onStatus, onOpen }) {
+function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
   let pc = null;
   let dc = null;
   let role = null;
@@ -119,6 +119,7 @@ function createP2P(roomId, { onState, onStatus, onOpen }) {
       try {
         const msg = JSON.parse(ev.data);
         if (msg.type === 'state') onState(msg.data);
+        if (msg.type === 'chat') onChat?.(msg);
       } catch { /* ignore */ }
     };
   }
@@ -127,6 +128,16 @@ function createP2P(roomId, { onState, onStatus, onOpen }) {
     if (dc?.readyState === 'open') {
       dc.send(JSON.stringify({ type: 'state', data }));
     }
+  }
+
+  function sendChat(text, from) {
+    if (dc?.readyState === 'open') {
+      dc.send(JSON.stringify({ type: 'chat', text, from, ts: Date.now() }));
+    }
+  }
+
+  function isOpen() {
+    return dc?.readyState === 'open';
   }
 
   async function restoreHost() {
@@ -202,6 +213,8 @@ function createP2P(roomId, { onState, onStatus, onOpen }) {
     acceptAnswer,
     acceptAnswerFromUrl,
     sendState,
+    sendChat,
+    isOpen,
     close,
     get role() { return role; },
   };
