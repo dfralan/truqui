@@ -282,13 +282,17 @@ body {
 
 /* ── Chat ── */
 .chat-panel {
+  display: none;
   width: 260px;
   flex-shrink: 0;
-  display: flex;
   flex-direction: column;
   border: 2px solid var(--cyan);
   background: var(--black);
   min-height: 400px;
+}
+
+.layout.with-chat .chat-panel {
+  display: flex;
 }
 
 .chat-title {

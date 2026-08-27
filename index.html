@@ -97,12 +97,12 @@
       </section>
     </main>
 
-    <aside id="chat-panel" class="chat-panel" hidden>
+    <aside id="chat-panel" class="chat-panel">
       <h2 class="chat-title cyan">CHAT</h2>
       <div id="chat-log" class="chat-log"></div>
       <form id="chat-form" class="chat-form">
-        <input id="chat-input" class="input chat-input" type="text" placeholder="ESCRIBÍ…" maxlength="200" autocomplete="off">
-        <button type="submit" class="btn btn-cyan btn-sm">▶</button>
+        <input id="chat-input" class="input chat-input" type="text" placeholder="ESCRIBÍ…" maxlength="200" autocomplete="off" disabled>
+        <button type="submit" class="btn btn-cyan btn-sm" disabled id="chat-send">▶</button>
       </form>
     </aside>
   </div>

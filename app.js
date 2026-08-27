@@ -25,6 +25,7 @@ const chatPanel = $('chat-panel');
 const chatLog = $('chat-log');
 const chatForm = $('chat-form');
 const chatInput = $('chat-input');
+const chatSend = $('chat-send');
 const scoresEl = $('scores');
 const opponentArea = $('opponent-area');
 const trickArea = $('trick-area');
@@ -51,10 +52,33 @@ function showGame() {
   hero.classList.add('compact');
 }
 
-function enableChat() {
+function showChat() {
+  if (layout.classList.contains('with-chat')) return;
   layout.classList.add('with-chat');
-  chatPanel.hidden = false;
   chatInput.disabled = false;
+  chatSend.disabled = false;
+}
+
+function onP2POpen() {
+  showChat();
+  appendChat({ text: '— CONECTADO P2P —', system: true });
+  onGameReady();
+}
+
+function onGameReady() {
+  responseBox.hidden = true;
+  answerBox.hidden = true;
+
+  if (p2p.role === 'host') {
+    mySlot = 0;
+    const room = roomState || initialRoomState();
+    room.players[playerId] = { slot: 0, joinedAt: Date.now() };
+    room.players['_guest'] = { slot: 1, joinedAt: Date.now() };
+    writeRoom({ ...room, ...newGameState([0, 0]) });
+  } else {
+    mySlot = 1;
+    setStatus('CONECTADO — ARRANCANDO…');
+  }
 }
 
 function appendChat({ text, from, ts, system }) {
@@ -86,27 +110,9 @@ function initP2P(id) {
   p2p = createP2P(id, {
     onState: (data) => render(data),
     onStatus: setStatus,
-    onOpen: onConnected,
+    onOpen: onP2POpen,
     onChat: (msg) => appendChat(msg),
   });
-}
-
-function onConnected() {
-  responseBox.hidden = true;
-  answerBox.hidden = true;
-  enableChat();
-  appendChat({ text: '— CONECTADO P2P —', system: true });
-
-  if (p2p.role === 'host') {
-    mySlot = 0;
-    const room = roomState || initialRoomState();
-    room.players[playerId] = { slot: 0, joinedAt: Date.now() };
-    room.players['_guest'] = { slot: 1, joinedAt: Date.now() };
-    writeRoom({ ...room, ...newGameState([0, 0]) });
-  } else {
-    mySlot = 1;
-    setStatus('CONECTADO — ARRANCANDO…');
-  }
 }
 
 function writeRoom(data) {
