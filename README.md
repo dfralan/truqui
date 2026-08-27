@@ -4,6 +4,8 @@ Truco argentino online, **peer-to-peer**. Sin servidor, sin base de datos, sin c
 
 Abrís el link, compartís otro link, y jugás directo con tu rival.
 
+![Truqui — preview del juego](preview.jpeg)
+
 ---
 
 ## ¿Qué es P2P acá?

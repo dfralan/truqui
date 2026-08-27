@@ -68,10 +68,14 @@ body {
   margin-bottom: 1.5rem;
 }
 
-.gaucho svg {
-  width: 100px;
-  height: 125px;
+.gaucho .hero-art {
+  display: block;
+  width: min(280px, 90vw);
+  height: auto;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 2px solid var(--cyan);
+  box-shadow: 4px 4px 0 var(--magenta);
 }
 
 .logo-cloud {
