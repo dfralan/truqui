@@ -273,7 +273,7 @@ function renderHand(hand, mySlot) {
   myHand.innerHTML = '';
   const me = slotIndex(mySlot);
   const cards = hand.hands[me] || [];
-  const canPlay = hand.phase === 'playing' && hand.turn === me && !hand.trucoPending;
+  const canPlay = hand.phase === 'playing' && hand.turn === me && !hand.trucoPending && !hand.envidoPending;
 
   for (const id of cards) {
     const el = cardEl(id, { disabled: !canPlay });
@@ -309,6 +309,46 @@ function renderActions(data, hand, mySlot, rivalSlot) {
     return;
   }
 
+  if (hand.envidoPending) {
+    const level = hand.envidoPending;
+    const label = ENVIDO_NAMES[level].toUpperCase();
+    const pts = level === 'falta'
+      ? faltaEnvidoPoints(roomState.scores)
+      : ENVIDO_ACCEPT_PTS[level];
+    const me = slotIndex(mySlot);
+
+    if (hand.envidoWaitingOn === me) {
+      setMsg(`${label} (${pts} PTS)! ¿QUERÉS?`);
+      const yes = document.createElement('button');
+      yes.className = 'btn btn-cyan';
+      yes.textContent = 'QUIERO';
+      yes.addEventListener('click', () => respondEnvido('accept'));
+      const no = document.createElement('button');
+      no.className = 'btn btn-danger';
+      no.textContent = 'NO QUIERO';
+      no.addEventListener('click', () => respondEnvido('decline'));
+      actionsEl.append(yes, no);
+
+      if (level === 2) {
+        const real = document.createElement('button');
+        real.className = 'btn btn-magenta';
+        real.textContent = 'REAL ENVIDO';
+        real.addEventListener('click', () => respondEnvido('real'));
+        actionsEl.appendChild(real);
+      }
+      if (level === 2 || level === 3) {
+        const falta = document.createElement('button');
+        falta.className = 'btn btn-magenta';
+        falta.textContent = 'FALTA ENVIDO';
+        falta.addEventListener('click', () => respondEnvido('falta'));
+        actionsEl.appendChild(falta);
+      }
+    } else {
+      setMsg(`CANTASTE ${label}. ESPERANDO…`);
+    }
+    return;
+  }
+
   if (hand.trucoPending) {
     const caller = hand.trucoCaller;
     const level = TRUCO_NAMES[hand.trucoPending].toUpperCase();
@@ -329,6 +369,17 @@ function renderActions(data, hand, mySlot, rivalSlot) {
     return;
   }
 
+  if (canCallEnvido(hand)) {
+    const me = slotIndex(mySlot);
+    const pts = envidoPoints(allHandCards(hand, me));
+    setMsg(`TU ENVIDO: ${pts} — PODÉS CANTAR ANTES DE JUGAR`);
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-cyan';
+    btn.textContent = 'ENVIDO';
+    btn.addEventListener('click', callEnvido);
+    actionsEl.appendChild(btn);
+  }
+
   if (hand.phase === 'playing' && hand.turn === mySlot && hand.truco < 3) {
     const btn = document.createElement('button');
     btn.className = 'btn btn-magenta';
@@ -339,8 +390,9 @@ function renderActions(data, hand, mySlot, rivalSlot) {
 }
 
 function renderMessage(data, hand, mySlot, rivalSlot) {
-  if (data.status === 'finished' || hand.phase === 'hand_end' || hand.trucoPending) return;
+  if (data.status === 'finished' || hand.phase === 'hand_end' || hand.trucoPending || hand.envidoPending) return;
   if (hand.phase !== 'playing') return;
+  if (canCallEnvido(hand)) return;
   setMsg(hand.turn === mySlot ? 'JUGÁ UNA CARTA' : 'ESPERANDO AL RIVAL…');
 }
 
@@ -356,7 +408,7 @@ function cardEl(id, opts = {}) {
 function backEl() {
   const el = document.createElement('div');
   el.className = 'card back';
-  el.textContent = '?';
+  el.innerHTML = '<img class="back-art" src="img/dorso.png" alt="Dorso">';
   return el;
 }
 
@@ -364,6 +416,24 @@ function updateHand(mutator) {
   if (!roomState?.hand) return;
   const next = structuredClone(roomState);
   next.hand = normalizeHand(mutator(normalizeHand(roomState.hand)));
+  writeRoom(next);
+}
+
+function updateEnvido(action) {
+  if (!roomState?.hand) return;
+  const next = structuredClone(roomState);
+  const result = applyEnvidoResponse(
+    roomState.hand,
+    roomState.scores,
+    resolveMySlot(),
+    action,
+  );
+  next.hand = result.hand;
+  next.scores = result.scores;
+  if (next.scores[0] >= 30 || next.scores[1] >= 30) {
+    next.status = 'finished';
+    next.hand = null;
+  }
   writeRoom(next);
 }
 
@@ -380,6 +450,19 @@ function callTruco() {
 function respondTruco(accept) {
   updateHand((hand) => applyTrucoResponse(hand, resolveMySlot(), accept));
   sendChatMessage(accept ? 'QUIERO' : 'NO QUIERO');
+}
+
+function callEnvido() {
+  updateHand((hand) => applyEnvidoCall(hand, resolveMySlot(), 2));
+  sendChatMessage('ENVIDO!');
+}
+
+function respondEnvido(action) {
+  updateEnvido(action);
+  if (action === 'accept') sendChatMessage('QUIERO');
+  else if (action === 'decline') sendChatMessage('NO QUIERO');
+  else if (action === 'real') sendChatMessage('REAL ENVIDO!');
+  else if (action === 'falta') sendChatMessage('FALTA ENVIDO!');
 }
 
 async function copyBtn(btn, text) {

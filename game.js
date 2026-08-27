@@ -28,6 +28,10 @@ const TRUCO_POWER = {
 const TRUCO_POINTS = [1, 2, 3, 4];
 const TRUCO_NAMES = ['', 'Truco', 'Retruco', 'Vale 4'];
 
+const ENVIDO_NAMES = { 2: 'Envido', 3: 'Real Envido', falta: 'Falta Envido' };
+const ENVIDO_ACCEPT_PTS = { 2: 2, 3: 3 };
+const ENVIDO_DECLINE_PTS = { 2: 1, 3: 2, falta: 1 };
+
 function createDeck() {
   const deck = [];
   for (const suit of Object.keys(SUITS)) {
@@ -54,6 +58,54 @@ function parseCard(id) {
 
 function cardPower(id) {
   return TRUCO_POWER[id] || 0;
+}
+
+function envidoCardValue(rank) {
+  if (rank === 10 || rank === 11 || rank === 12) return 0;
+  if (rank === 1) return 1;
+  return rank;
+}
+
+function envidoPoints(cards) {
+  if (!cards?.length) return 0;
+  let best = 0;
+  for (const id of cards) {
+    best = Math.max(best, envidoCardValue(parseCard(id).rank));
+  }
+  for (let i = 0; i < cards.length; i++) {
+    for (let j = i + 1; j < cards.length; j++) {
+      const a = parseCard(cards[i]);
+      const b = parseCard(cards[j]);
+      if (a.suit === b.suit) {
+        best = Math.max(best, envidoCardValue(a.rank) + envidoCardValue(b.rank));
+      }
+    }
+  }
+  return best;
+}
+
+function allHandCards(hand, player) {
+  const p = slotIndex(player);
+  return [...(hand.hands[p] || []), ...(hand.playedCards[p] || [])];
+}
+
+function faltaEnvidoPoints(scores) {
+  return 30 - Math.max(scores[0], scores[1]);
+}
+
+function envidoWinner(hand) {
+  const p0 = envidoPoints(allHandCards(hand, 0));
+  const p1 = envidoPoints(allHandCards(hand, 1));
+  if (p0 > p1) return 0;
+  if (p1 > p0) return 1;
+  return slotIndex(hand.mano);
+}
+
+function canCallEnvido(hand) {
+  const h = normalizeHand(hand);
+  if (h.phase !== 'playing' || h.envidoResolved || h.envidoPending || h.trucoPending) return false;
+  if (h.trick > 0) return false;
+  return h.playedCards[0].length === 0 && h.playedCards[1].length === 0;
 }
 
 function trickWinner(p0Card, p1Card) {
@@ -89,11 +141,16 @@ function normalizeHand(hand) {
   };
   h.turn = slotIndex(h.turn);
   h.trickLeader = slotIndex(h.trickLeader);
+  h.mano = slotIndex(h.mano ?? h.trickLeader ?? 0);
   if (h.trucoCaller != null) h.trucoCaller = slotIndex(h.trucoCaller);
+  if (h.envidoWaitingOn != null) h.envidoWaitingOn = slotIndex(h.envidoWaitingOn);
+  if (h.envidoSinger != null) h.envidoSinger = slotIndex(h.envidoSinger);
+  h.envidoResolved = !!h.envidoResolved;
   return h;
 }
 
-function dealNewHand() {
+function dealNewHand(previousMano = null) {
+  const mano = previousMano == null ? 0 : rivalIndex(previousMano);
   const deck = createDeck();
   return normalizeHand({
     hands: {
@@ -104,11 +161,16 @@ function dealNewHand() {
     trickCards: { 0: null, 1: null },
     playedCards: { 0: [], 1: [] },
     trickWinners: [],
-    trickLeader: 0,
-    turn: 0,
+    mano,
+    trickLeader: mano,
+    turn: mano,
     truco: 0,
     trucoPending: null,
     trucoCaller: null,
+    envidoResolved: false,
+    envidoPending: null,
+    envidoWaitingOn: null,
+    envidoSinger: null,
     handPoints: TRUCO_POINTS[0],
     phase: 'playing',
     winner: null,
@@ -138,6 +200,7 @@ function applyPlay(hand, player, cardId) {
   const h = normalizeHand(hand);
   const p = slotIndex(player);
   if (h.phase !== 'playing') return h;
+  if (h.envidoPending) return h;
   if (h.turn !== p) return h;
   if (!h.hands[p].includes(cardId)) return h;
 
@@ -173,7 +236,7 @@ function applyPlay(hand, player, cardId) {
 function applyTrucoCall(hand, caller) {
   const h = normalizeHand(hand);
   const c = slotIndex(caller);
-  if (h.phase !== 'playing' || h.trucoPending) return h;
+  if (h.phase !== 'playing' || h.trucoPending || h.envidoPending) return h;
   if (h.truco >= 3) return h;
 
   const next = structuredClone(h);
@@ -199,17 +262,69 @@ function applyTrucoResponse(hand, responder, accept) {
   return next;
 }
 
+function applyEnvidoCall(hand, caller, level = 2) {
+  const h = normalizeHand(hand);
+  const c = slotIndex(caller);
+  if (!canCallEnvido(h)) return h;
+
+  const next = structuredClone(h);
+  next.envidoPending = level;
+  next.envidoSinger = c;
+  next.envidoWaitingOn = rivalIndex(c);
+  return normalizeHand(next);
+}
+
+function applyEnvidoResponse(hand, scores, responder, action) {
+  const h = normalizeHand(hand);
+  const r = slotIndex(responder);
+  if (!h.envidoPending || h.envidoWaitingOn !== r) {
+    return { hand: h, scores: [...scores] };
+  }
+
+  const next = structuredClone(h);
+  const level = h.envidoPending;
+  const singer = h.envidoSinger;
+  const newScores = [...scores];
+
+  if (action === 'decline') {
+    newScores[singer] += ENVIDO_DECLINE_PTS[level];
+    next.envidoPending = null;
+    next.envidoWaitingOn = null;
+    next.envidoSinger = null;
+    next.envidoResolved = true;
+  } else if (action === 'accept') {
+    const pts = level === 'falta' ? faltaEnvidoPoints(scores) : ENVIDO_ACCEPT_PTS[level];
+    const winner = envidoWinner(h);
+    newScores[winner] += pts;
+    next.envidoPending = null;
+    next.envidoWaitingOn = null;
+    next.envidoSinger = null;
+    next.envidoResolved = true;
+  } else if (action === 'real' && level === 2) {
+    next.envidoPending = 3;
+    next.envidoSinger = r;
+    next.envidoWaitingOn = rivalIndex(r);
+  } else if (action === 'falta' && (level === 2 || level === 3)) {
+    next.envidoPending = 'falta';
+    next.envidoSinger = r;
+    next.envidoWaitingOn = rivalIndex(r);
+  }
+
+  return { hand: normalizeHand(next), scores: newScores };
+}
+
 function finishHand(state) {
   const next = structuredClone(state);
   const pts = next.hand.handPoints;
   if (next.hand.winner !== null) {
     next.scores[next.hand.winner] += pts;
   }
+  const mano = next.hand.mano;
   if (next.scores[0] >= 30 || next.scores[1] >= 30) {
     next.status = 'finished';
     next.hand = null;
   } else {
-    next.hand = dealNewHand();
+    next.hand = dealNewHand(mano);
   }
   next.updatedAt = Date.now();
   return next;
