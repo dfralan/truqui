@@ -1,8 +1,8 @@
 const SUITS = {
-  e: { name: 'espada', symbol: '⚔', color: '#111' },
-  b: { name: 'basto', symbol: '🍃', color: '#2ecc71' },
-  o: { name: 'oro', symbol: '🪙', color: '#f1c40f' },
-  c: { name: 'copa', symbol: '🏆', color: '#e74c3c' },
+  e: { name: 'espada', img: 'img/palos/espada.png', color: '#0ff' },
+  b: { name: 'basto', img: 'img/palos/basto.png', color: '#2ecc71' },
+  o: { name: 'oro', img: 'img/palos/oro.png', color: '#f1c40f' },
+  c: { name: 'copa', img: 'img/palos/copa.png', color: '#e74c3c' },
 };
 
 const RANK_LABELS = {
@@ -64,15 +64,45 @@ function trickWinner(p0Card, p1Card) {
   return null; // parda
 }
 
+function slotIndex(n) {
+  return Number(n) === 0 ? 0 : 1;
+}
+
+function rivalIndex(n) {
+  return slotIndex(n) === 0 ? 1 : 0;
+}
+
+function normalizeHand(hand) {
+  if (!hand) return hand;
+  const h = structuredClone(hand);
+  h.hands = {
+    0: [...(h.hands?.[0] ?? h.hands?.['0'] ?? [])],
+    1: [...(h.hands?.[1] ?? h.hands?.['1'] ?? [])],
+  };
+  h.trickCards = {
+    0: h.trickCards?.[0] ?? h.trickCards?.['0'] ?? null,
+    1: h.trickCards?.[1] ?? h.trickCards?.['1'] ?? null,
+  };
+  h.playedCards = {
+    0: [...(h.playedCards?.[0] ?? h.playedCards?.['0'] ?? [])],
+    1: [...(h.playedCards?.[1] ?? h.playedCards?.['1'] ?? [])],
+  };
+  h.turn = slotIndex(h.turn);
+  h.trickLeader = slotIndex(h.trickLeader);
+  if (h.trucoCaller != null) h.trucoCaller = slotIndex(h.trucoCaller);
+  return h;
+}
+
 function dealNewHand() {
   const deck = createDeck();
-  return {
+  return normalizeHand({
     hands: {
       0: [deck[0], deck[2], deck[4]],
       1: [deck[1], deck[3], deck[5]],
     },
     trick: 0,
     trickCards: { 0: null, 1: null },
+    playedCards: { 0: [], 1: [] },
     trickWinners: [],
     trickLeader: 0,
     turn: 0,
@@ -82,7 +112,7 @@ function dealNewHand() {
     handPoints: TRUCO_POINTS[0],
     phase: 'playing',
     winner: null,
-  };
+  });
 }
 
 function initialRoomState() {
@@ -105,14 +135,17 @@ function newGameState(existingScores) {
 }
 
 function applyPlay(hand, player, cardId) {
-  if (hand.phase !== 'playing') return hand;
-  if (hand.turn !== player) return hand;
-  if (!hand.hands[player].includes(cardId)) return hand;
+  const h = normalizeHand(hand);
+  const p = slotIndex(player);
+  if (h.phase !== 'playing') return h;
+  if (h.turn !== p) return h;
+  if (!h.hands[p].includes(cardId)) return h;
 
-  const next = structuredClone(hand);
+  const next = structuredClone(h);
   const leader = next.trickLeader;
-  next.hands[player] = next.hands[player].filter(c => c !== cardId);
-  next.trickCards[player] = cardId;
+  next.hands[p] = next.hands[p].filter(c => c !== cardId);
+  next.trickCards[p] = cardId;
+  next.playedCards[p] = [...next.playedCards[p], cardId];
 
   const p0 = next.trickCards[0];
   const p1 = next.trickCards[1];
@@ -131,32 +164,35 @@ function applyPlay(hand, player, cardId) {
       next.turn = w ?? leader;
     }
   } else {
-    next.turn = player === 0 ? 1 : 0;
+    next.turn = rivalIndex(p);
   }
 
-  return next;
+  return normalizeHand(next);
 }
 
 function applyTrucoCall(hand, caller) {
-  if (hand.phase !== 'playing' || hand.trucoPending) return hand;
-  if (hand.truco >= 3) return hand;
+  const h = normalizeHand(hand);
+  const c = slotIndex(caller);
+  if (h.phase !== 'playing' || h.trucoPending) return h;
+  if (h.truco >= 3) return h;
 
-  const next = structuredClone(hand);
-  next.trucoPending = hand.truco + 1;
-  next.trucoCaller = caller;
+  const next = structuredClone(h);
+  next.trucoPending = h.truco + 1;
+  next.trucoCaller = c;
   return next;
 }
 
 function applyTrucoResponse(hand, responder, accept) {
-  if (!hand.trucoPending) return hand;
+  const h = normalizeHand(hand);
+  if (!h.trucoPending) return h;
 
-  const next = structuredClone(hand);
+  const next = structuredClone(h);
   if (accept) {
-    next.truco = hand.trucoPending;
+    next.truco = h.trucoPending;
     next.handPoints = TRUCO_POINTS[next.truco];
   } else {
     next.phase = 'hand_end';
-    next.winner = hand.trucoCaller === 0 ? 0 : 1;
+    next.winner = slotIndex(h.trucoCaller) === 0 ? 0 : 1;
   }
   next.trucoPending = null;
   next.trucoCaller = null;
@@ -181,7 +217,7 @@ function finishHand(state) {
 
 function cardLabel(id) {
   const c = parseCard(id);
-  return `${RANK_LABELS[c.rank]} ${c.symbol}`;
+  return `${RANK_LABELS[c.rank]} ${c.name}`;
 }
 
 function handWinner(trickWinners) {

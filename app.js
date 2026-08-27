@@ -28,9 +28,10 @@ const chatForm = $('chat-form');
 const chatInput = $('chat-input');
 const chatSend = $('chat-send');
 const scoresEl = $('scores');
-const opponentHand = $('opponent-hand');
 const opponentArea = $('opponent-area');
-const trickArea = $('trick-area');
+const opponentHand = $('opponent-hand');
+const rivalPlayed = $('rival-played');
+const myPlayed = $('my-played');
 const myHand = $('my-hand');
 const actionsEl = $('actions');
 const msgEl = $('msg');
@@ -76,6 +77,12 @@ function onSyncRequest() {
   if (p2p?.role === 'host' && roomState?.status === 'playing') {
     p2p.sendState(roomState);
   }
+}
+
+function resolveMySlot() {
+  if (p2p?.role === 'host') return 0;
+  if (p2p?.role === 'guest') return 1;
+  return slotIndex(mySlot ?? 0);
 }
 
 function onGameReady() {
@@ -211,17 +218,11 @@ function render(data) {
   lastUpdatedAt = data.updatedAt || 0;
   roomState = data;
 
-  if (!data.players[playerId] && !data.players['_guest']) return;
+  if (!data.players[playerId] && !data.players['_guest'] && !p2p?.role) return;
 
-  if (data.players[playerId]) {
-    mySlot = data.players[playerId].slot;
-  } else if (data.players['_guest'] && mySlot === 1) {
-    /* guest */
-  } else {
-    return;
-  }
+  mySlot = resolveMySlot();
 
-  const rivalSlot = mySlot === 0 ? 1 : 0;
+  const rivalSlot = rivalIndex(mySlot);
 
   if (data.status === 'waiting') {
     showLobby();
@@ -229,7 +230,7 @@ function render(data) {
   }
 
   showGame();
-  const hand = data.hand;
+  const hand = data.hand ? normalizeHand(data.hand) : null;
   if (!hand) return;
 
   scoresEl.innerHTML = `<span>VOS: ${data.scores[mySlot]}</span><span>RIVAL: ${data.scores[rivalSlot]}</span>`;
@@ -238,47 +239,41 @@ function render(data) {
     ? (hand.turn === rivalSlot ? '▶ TURNO DEL RIVAL' : '▶ TURNO TUYO')
     : '';
 
-  renderOpponentHand(hand, rivalSlot);
-  renderTrick(hand, mySlot, rivalSlot);
+  renderTable(hand, mySlot, rivalSlot);
   renderHand(hand, mySlot);
   renderActions(data, hand, mySlot, rivalSlot);
   renderMessage(data, hand, mySlot, rivalSlot);
 }
 
-function renderOpponentHand(hand, rivalSlot) {
+function renderTable(hand, mySlot, rivalSlot) {
+  const me = slotIndex(mySlot);
+  const rival = rivalIndex(me);
+
   opponentHand.innerHTML = '';
-  const count = (hand.hands[rivalSlot] || []).length;
-  for (let i = 0; i < count; i++) {
+  const rivalCards = hand.hands[rival] || [];
+  for (let i = 0; i < rivalCards.length; i++) {
     opponentHand.appendChild(backEl());
   }
+
+  renderPlayedRow(rivalPlayed, hand.playedCards[rival] || []);
+  renderPlayedRow(myPlayed, hand.playedCards[me] || []);
 }
 
-function renderTrick(hand, mySlot, rivalSlot) {
-  trickArea.innerHTML = '';
-  const mine = hand.trickCards[mySlot];
-  const theirs = hand.trickCards[rivalSlot];
-
-  const leftSlot = document.createElement('div');
-  leftSlot.className = 'card-slot';
-  leftSlot.appendChild(theirs ? cardEl(theirs, { played: true }) : emptySlotEl());
-
-  const rightSlot = document.createElement('div');
-  rightSlot.className = 'card-slot';
-  rightSlot.appendChild(mine ? cardEl(mine, { played: true }) : emptySlotEl());
-
-  trickArea.append(leftSlot, rightSlot);
-}
-
-function emptySlotEl() {
-  const el = document.createElement('div');
-  el.className = 'card empty-slot';
-  return el;
+function renderPlayedRow(container, cards) {
+  container.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'played-slot';
+    if (cards[i]) slot.appendChild(cardEl(cards[i], { played: true }));
+    container.appendChild(slot);
+  }
 }
 
 function renderHand(hand, mySlot) {
   myHand.innerHTML = '';
-  const cards = hand.hands[mySlot] || [];
-  const canPlay = hand.phase === 'playing' && hand.turn === mySlot && !hand.trucoPending;
+  const me = slotIndex(mySlot);
+  const cards = hand.hands[me] || [];
+  const canPlay = hand.phase === 'playing' && hand.turn === me && !hand.trucoPending;
 
   for (const id of cards) {
     const el = cardEl(id, { disabled: !canPlay });
@@ -353,11 +348,8 @@ function cardEl(id, opts = {}) {
   const c = parseCard(id);
   const el = document.createElement('div');
   el.className = 'card' + (opts.played ? ' played' : '') + (opts.disabled ? ' disabled' : '');
-  el.innerHTML = `<span>${RANK_LABELS[c.rank]}</span><span class="suit">${c.symbol}</span>`;
-  el.style.color = c.color;
-  if (!opts.played) {
-    el.style.borderColor = c.color === '#111' ? '#333' : c.color;
-  }
+  el.style.borderColor = c.color;
+  el.innerHTML = `<span class="rank">${RANK_LABELS[c.rank]}</span><img class="suit" src="${c.img}" alt="${c.name}">`;
   return el;
 }
 
@@ -371,22 +363,22 @@ function backEl() {
 function updateHand(mutator) {
   if (!roomState?.hand) return;
   const next = structuredClone(roomState);
-  next.hand = mutator(roomState.hand);
+  next.hand = normalizeHand(mutator(normalizeHand(roomState.hand)));
   writeRoom(next);
 }
 
 function playCard(cardId) {
-  updateHand((hand) => applyPlay(hand, mySlot, cardId));
+  updateHand((hand) => applyPlay(hand, resolveMySlot(), cardId));
 }
 
 function callTruco() {
   const level = roomState?.hand?.truco === 0 ? 'TRUCO!' : roomState?.hand?.truco === 1 ? 'RETRUCO!' : 'VALE 4!';
-  updateHand((hand) => applyTrucoCall(hand, mySlot));
+  updateHand((hand) => applyTrucoCall(hand, resolveMySlot()));
   sendChatMessage(level);
 }
 
 function respondTruco(accept) {
-  updateHand((hand) => applyTrucoResponse(hand, mySlot, accept));
+  updateHand((hand) => applyTrucoResponse(hand, resolveMySlot(), accept));
   sendChatMessage(accept ? 'QUIERO' : 'NO QUIERO');
 }
 
