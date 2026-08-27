@@ -4,6 +4,8 @@
   --magenta: #f0f;
   --white: #fff;
   --dim: #666;
+  --felt: #8B6914;
+  --felt-dark: #6B4F10;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -219,53 +221,122 @@ body {
   font-family: 'Press Start 2P', monospace;
   font-size: 0.45rem;
   color: var(--magenta);
+  margin-bottom: 0.5rem;
+}
+
+.table-felt {
+  background: var(--felt);
+  border: 3px solid var(--felt-dark);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+  padding: 1rem 0.75rem;
   margin-bottom: 1rem;
+}
+
+.hand-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-height: 2rem;
+}
+
+.opponent-hand {
+  margin-bottom: 0.75rem;
+  min-height: 36px;
+}
+
+.opponent-hand .card.back {
+  width: 36px;
+  height: 52px;
+  font-size: 0.5rem;
+}
+
+.trick-zone {
+  margin: 0.5rem 0 1rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.15);
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+}
+
+.zone-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.4rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.06em;
 }
 
 #trick-area {
   display: flex;
+  flex-direction: row;
   justify-content: center;
-  gap: 1rem;
-  min-height: 110px;
   align-items: center;
-  margin-bottom: 1.5rem;
-  border: 1px dashed var(--dim);
-  padding: 0.5rem;
+  gap: 1.25rem;
+  min-height: 100px;
+  flex-wrap: nowrap;
+}
+
+#trick-area .card-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 64px;
+  min-height: 96px;
 }
 
 .card {
-  width: 58px;
-  height: 88px;
-  background: var(--black);
-  color: var(--white);
+  width: 64px;
+  height: 96px;
+  background: #e8e8e8;
+  color: #111;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   cursor: pointer;
   user-select: none;
-  border: 3px solid var(--white);
-  box-shadow: 3px 3px 0 var(--cyan);
+  border: 2px dashed #555;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
   transition: transform 0.08s;
 }
 
-.card:hover:not(.back):not(.disabled) {
+.card:hover:not(.back):not(.disabled):not(.played) {
   transform: translate(-2px, -2px);
-  box-shadow: 5px 5px 0 var(--magenta);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
 }
 
 .card.disabled { opacity: 0.4; cursor: not-allowed; }
-.card.back { border-color: var(--cyan); box-shadow: 3px 3px 0 var(--magenta); cursor: default; background: #001a1a; }
-.card.played { cursor: default; }
-.card .suit { font-size: 1.2rem; line-height: 1; }
+.card.back {
+  border: 2px solid var(--cyan);
+  border-style: solid;
+  box-shadow: 2px 2px 0 var(--magenta);
+  cursor: default;
+  background: #1a1a2e;
+  color: var(--cyan);
+}
+.card.played {
+  cursor: default;
+  border-style: solid;
+  border-color: #333;
+  background: #f0f0f0;
+}
+.card.empty-slot {
+  width: 64px;
+  height: 96px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  background: transparent;
+  box-shadow: none;
+}
+.card .suit { font-size: 1.3rem; line-height: 1; }
 
 #my-hand {
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   flex-wrap: wrap;
+  padding-top: 0.5rem;
 }
 
 .actions {

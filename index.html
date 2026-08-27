@@ -73,10 +73,14 @@
 
       <section id="game" hidden>
         <div id="scores" class="scores"></div>
-        <div id="table">
+        <div id="table" class="table-felt">
+          <div id="opponent-hand" class="hand-row opponent-hand"></div>
           <div id="opponent-area" class="turn-label"></div>
-          <div id="trick-area"></div>
-          <div id="my-hand"></div>
+          <div class="trick-zone">
+            <p class="zone-label">CARTAS JUGADAS</p>
+            <div id="trick-area"></div>
+          </div>
+          <div id="my-hand" class="hand-row"></div>
         </div>
         <div id="actions" class="actions"></div>
         <p id="msg" class="game-msg"></p>

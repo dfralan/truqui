@@ -28,6 +28,7 @@ const chatForm = $('chat-form');
 const chatInput = $('chat-input');
 const chatSend = $('chat-send');
 const scoresEl = $('scores');
+const opponentHand = $('opponent-hand');
 const opponentArea = $('opponent-area');
 const trickArea = $('trick-area');
 const myHand = $('my-hand');
@@ -237,19 +238,41 @@ function render(data) {
     ? (hand.turn === rivalSlot ? '▶ TURNO DEL RIVAL' : '▶ TURNO TUYO')
     : '';
 
+  renderOpponentHand(hand, rivalSlot);
   renderTrick(hand, mySlot, rivalSlot);
   renderHand(hand, mySlot);
   renderActions(data, hand, mySlot, rivalSlot);
   renderMessage(data, hand, mySlot, rivalSlot);
 }
 
+function renderOpponentHand(hand, rivalSlot) {
+  opponentHand.innerHTML = '';
+  const count = (hand.hands[rivalSlot] || []).length;
+  for (let i = 0; i < count; i++) {
+    opponentHand.appendChild(backEl());
+  }
+}
+
 function renderTrick(hand, mySlot, rivalSlot) {
   trickArea.innerHTML = '';
   const mine = hand.trickCards[mySlot];
   const theirs = hand.trickCards[rivalSlot];
-  if (theirs) trickArea.appendChild(cardEl(theirs, { played: true }));
-  else trickArea.appendChild(backEl());
-  if (mine) trickArea.appendChild(cardEl(mine, { played: true }));
+
+  const leftSlot = document.createElement('div');
+  leftSlot.className = 'card-slot';
+  leftSlot.appendChild(theirs ? cardEl(theirs, { played: true }) : emptySlotEl());
+
+  const rightSlot = document.createElement('div');
+  rightSlot.className = 'card-slot';
+  rightSlot.appendChild(mine ? cardEl(mine, { played: true }) : emptySlotEl());
+
+  trickArea.append(leftSlot, rightSlot);
+}
+
+function emptySlotEl() {
+  const el = document.createElement('div');
+  el.className = 'card empty-slot';
+  return el;
 }
 
 function renderHand(hand, mySlot) {
@@ -332,7 +355,9 @@ function cardEl(id, opts = {}) {
   el.className = 'card' + (opts.played ? ' played' : '') + (opts.disabled ? ' disabled' : '');
   el.innerHTML = `<span>${RANK_LABELS[c.rank]}</span><span class="suit">${c.symbol}</span>`;
   el.style.color = c.color;
-  el.style.borderColor = c.color === '#111' ? '#fff' : c.color;
+  if (!opts.played) {
+    el.style.borderColor = c.color === '#111' ? '#333' : c.color;
+  }
   return el;
 }
 
