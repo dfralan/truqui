@@ -1,4 +1,9 @@
-const STUN = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const STUN = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
+};
 
 function pack(obj) {
   const json = JSON.stringify(obj);
@@ -94,10 +99,11 @@ function hostKey(roomId) {
   return `truqui-host-${roomId}`;
 }
 
-function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
+function createP2P(roomId, { onState, onStatus, onOpen, onChat, onReady }) {
   let pc = null;
   let dc = null;
   let role = null;
+  let opened = false;
   let bc = null;
 
   try {
@@ -109,17 +115,33 @@ function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
     };
   } catch { /* sin BroadcastChannel */ }
 
+  function fireOpen() {
+    if (opened) return;
+    opened = true;
+    onStatus('Conectado P2P');
+    onOpen?.();
+  }
+
+  function attachPC(pcRef) {
+    pcRef.onconnectionstatechange = () => {
+      const s = pcRef.connectionState;
+      if (s === 'connected' && dc?.readyState === 'open') fireOpen();
+      if (s === 'failed' || s === 'disconnected') {
+        onStatus('Conexión perdida — recargá e intentá de nuevo');
+      }
+    };
+    pcRef.onicecandidate = () => {};
+  }
+
   function setupChannel(channel) {
     dc = channel;
-    dc.onopen = () => {
-      onStatus('Conectado P2P');
-      onOpen?.();
-    };
+    dc.onopen = () => fireOpen();
     dc.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
         if (msg.type === 'state') onState(msg.data);
         if (msg.type === 'chat') onChat?.(msg);
+        if (msg.type === 'ready') onReady?.();
       } catch { /* ignore */ }
     };
   }
@@ -127,6 +149,12 @@ function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
   function sendState(data) {
     if (dc?.readyState === 'open') {
       dc.send(JSON.stringify({ type: 'state', data }));
+    }
+  }
+
+  function requestSync() {
+    if (dc?.readyState === 'open') {
+      dc.send(JSON.stringify({ type: 'ready' }));
     }
   }
 
@@ -146,8 +174,8 @@ function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
     if (!saved) throw new Error('Sesión de host no encontrada');
 
     pc = new RTCPeerConnection(STUN);
+    attachPC(pc);
     setupChannel(pc.createDataChannel('game', { ordered: true }));
-    pc.onicecandidate = () => {};
     await pc.setLocalDescription(toDesc(unpack(saved)));
   }
 
@@ -155,8 +183,8 @@ function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
     role = 'host';
     onStatus('Generando link…');
     pc = new RTCPeerConnection(STUN);
+    attachPC(pc);
     setupChannel(pc.createDataChannel('game', { ordered: true }));
-    pc.onicecandidate = () => {};
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -171,7 +199,7 @@ function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
     onStatus('Conectando con el host…');
     const offer = unpack(offerPacked);
     pc = new RTCPeerConnection(STUN);
-    pc.onicecandidate = () => {};
+    attachPC(pc);
     pc.ondatachannel = (ev) => setupChannel(ev.channel);
 
     await pc.setRemoteDescription(toDesc(offer));
@@ -214,6 +242,7 @@ function createP2P(roomId, { onState, onStatus, onOpen, onChat }) {
     acceptAnswerFromUrl,
     sendState,
     sendChat,
+    requestSync,
     isOpen,
     close,
     get role() { return role; },

@@ -8,6 +8,7 @@ let mySlot = null;
 let p2p = null;
 let roomState = null;
 let lastUpdatedAt = 0;
+let gameStarted = false;
 
 const $ = (id) => document.getElementById(id);
 const layout = $('layout');
@@ -63,9 +64,22 @@ function onP2POpen() {
   showChat();
   appendChat({ text: '— CONECTADO P2P —', system: true });
   onGameReady();
+  if (p2p.role === 'guest') {
+    p2p.requestSync();
+    setTimeout(() => p2p.requestSync(), 500);
+    setTimeout(() => p2p.requestSync(), 1500);
+  }
+}
+
+function onSyncRequest() {
+  if (p2p?.role === 'host' && roomState?.status === 'playing') {
+    p2p.sendState(roomState);
+  }
 }
 
 function onGameReady() {
+  if (gameStarted) return;
+  gameStarted = true;
   responseBox.hidden = true;
   answerBox.hidden = true;
 
@@ -75,6 +89,8 @@ function onGameReady() {
     room.players[playerId] = { slot: 0, joinedAt: Date.now() };
     room.players['_guest'] = { slot: 1, joinedAt: Date.now() };
     writeRoom({ ...room, ...newGameState([0, 0]) });
+    setTimeout(() => p2p?.sendState(roomState), 300);
+    setTimeout(() => p2p?.sendState(roomState), 1000);
   } else {
     mySlot = 1;
     setStatus('CONECTADO — ARRANCANDO…');
@@ -112,6 +128,7 @@ function initP2P(id) {
     onStatus: setStatus,
     onOpen: onP2POpen,
     onChat: (msg) => appendChat(msg),
+    onReady: onSyncRequest,
   });
 }
 
@@ -180,8 +197,8 @@ async function restoreHostSession() {
 async function hostAcceptAnswer(url) {
   if (!p2p) return;
   try {
+    setStatus('CONECTANDO…');
     await p2p.acceptAnswerFromUrl(url.trim());
-    setStatus('RIVAL CONECTADO');
   } catch {
     setStatus('LINK DE RESPUESTA INVÁLIDO');
   }
@@ -378,7 +395,7 @@ if (roomId && link.o && sessionStorage.getItem(`truqui-role-${roomId}`) === 'hos
   shareBox.hidden = true;
   answerBox.hidden = true;
   p2p.acceptAnswer(link.a)
-    .then(() => setStatus('RIVAL CONECTADO'))
+    .then(() => setStatus('CONECTANDO…'))
     .catch(() => setStatus('ABRÍ EN LA PESTAÑA DONDE CREASTE LA PARTIDA'));
 } else if (roomId) {
   setStatus('LINK INCOMPLETO — PEDILE AL HOST EL LINK CON &o=');
