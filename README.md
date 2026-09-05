@@ -79,27 +79,27 @@ Base64url evita que `+`, `/` y `=` rompan el query string. Al abrir el link, `un
 
 ```mermaid
 sequenceDiagram
-    participant H as Host (browser)
-    participant L as Link / WhatsApp / etc.
-    participant G as Guest (browser)
+    participant H as Host browser
+    participant L as Link WhatsApp etc
+    participant G as Guest browser
     participant S as STUN Google
 
-    H->>H: createOffer() + ICE gathering
-    H->>H: sessionStorage ← offer (backup host)
-    H->>L: ?r=SALA&o=OFFER
+    H->>H: createOffer + ICE gathering
+    H->>H: sessionStorage guarda offer
+    H->>L: link con r y o
     L->>G: rival abre link
-    G->>G: setRemoteDescription(offer)
-    G->>G: createAnswer() + ICE gathering
-    G->>L: ?r=SALA&a=ANSWER
-    Note over G,H: BroadcastChannel acelera esto en misma máquina
-    L->>H: host pega answer (o abre &a= link)
-    H->>H: setRemoteDescription(answer)
-    H->>G: ICE checks (directo o vía STUN)
-    G->>S: ¿cuál es mi IP pública?
+    G->>G: setRemoteDescription offer
+    G->>G: createAnswer + ICE gathering
+    G->>L: link con r y a
+    Note over G,H: BroadcastChannel en misma maquina
+    L->>H: host pega answer
+    H->>H: setRemoteDescription answer
+    H->>G: ICE checks via STUN
+    G->>S: pedir IP publica
     S-->>G: reflexive candidate
-    H->>G: DataChannel "game" abierto
-    G->>H: { type: "ready" } × reintentos
-    H->>G: { type: "state", data: partida }
+    H->>G: DataChannel game abierto
+    G->>H: mensaje ready reintentos
+    H->>G: mensaje state partida
     Note over H,G: Juego sincronizado P2P
 ```
 
@@ -109,20 +109,20 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    subgraph App["app.js — lógica de truco"]
-        GS[game.js — reglas, cartas, envido]
-        UI[render + acciones]
+    subgraph App["app.js - logica de truco"]
+        GS["game.js - reglas"]
+        UI["render + acciones"]
     end
 
-    subgraph Sync["sync.js — transporte P2P"]
-        DC[RTCDataChannel "game"]
-        PC[RTCPeerConnection]
-        STUN[STUN stun.l.google.com]
+    subgraph Sync["sync.js - transporte P2P"]
+        DC["RTCDataChannel game"]
+        PC["RTCPeerConnection"]
+        STUN["STUN Google"]
     end
 
-    subgraph Link["URL como señalización"]
-        O["&o= offer"]
-        A["&a= answer"]
+    subgraph Link["URL como senalizacion"]
+        O["param o - offer"]
+        A["param a - answer"]
     end
 
     UI --> GS
@@ -131,10 +131,6 @@ flowchart TB
     PC <-->|NAT traversal| STUN
     O -.->|handshake inicial| PC
     A -.->|handshake inicial| PC
-
-    style App fill:#111,color:#0ff
-    style Sync fill:#111,color:#f0f
-    style Link fill:#111,color:#fff
 ```
 
 ---

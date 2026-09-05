@@ -1,0 +1,27 @@
+import type { CardId, EnvidoAction, EnvidoLevel, HandState, ParsedCard, PlayerSlot, RoomState } from './types.js';
+export declare const RANK_LABELS: Record<number, string>;
+export declare const TRUCO_NAMES: readonly ["", "Truco", "Retruco", "Vale 4"];
+export declare const ENVIDO_NAMES: Record<EnvidoLevel, string>;
+export declare const ENVIDO_ACCEPT_PTS: Record<2 | 3, number>;
+export declare const ENVIDO_DECLINE_PTS: Record<EnvidoLevel, number>;
+export declare function parseCard(id: CardId): ParsedCard;
+export declare function envidoPoints(cards: CardId[]): number;
+export declare function allHandCards(hand: HandState, player: PlayerSlot | number): CardId[];
+export declare function faltaEnvidoPoints(scores: [number, number]): number;
+export declare function canCallEnvido(hand: HandState): boolean;
+export declare function slotIndex(n: number): PlayerSlot;
+export declare function rivalIndex(n: number): PlayerSlot;
+export declare function normalizeHand(hand: HandState): HandState;
+export declare function dealNewHand(previousMano?: PlayerSlot | null): HandState;
+export declare function initialRoomState(): RoomState;
+export declare function newGameState(existingScores?: [number, number]): RoomState;
+export declare function applyPlay(hand: HandState, player: number, cardId: CardId): HandState;
+export declare function applyTrucoCall(hand: HandState, caller: number): HandState;
+export declare function applyTrucoResponse(hand: HandState, accept: boolean): HandState;
+export declare function applyEnvidoCall(hand: HandState, caller: number, level?: EnvidoLevel): HandState;
+export declare function applyEnvidoResponse(hand: HandState, scores: [number, number], responder: number, action: EnvidoAction): {
+    hand: HandState;
+    scores: [number, number];
+};
+export declare function finishHand(state: RoomState): RoomState;
+export declare function cardLabel(id: CardId): string;

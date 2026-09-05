@@ -1,11 +1,17 @@
 {
   "name": "truqui",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "npx serve .",
-    "deploy": "wrangler pages deploy . --project-name=truqui"
+    "build": "tsc && node scripts/copy-static.mjs",
+    "start": "npm run build && npx serve dist",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=truqui"
+  },
+  "dependencies": {
+    "@noble/secp256k1": "1.7.2"
   },
   "devDependencies": {
+    "typescript": "^5.7.0",
     "wrangler": "^4.0.0"
   }
 }

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Truqui — Truco Argentino Online Gratis | P2P sin cuenta</title>
+  <meta name="description" content="Jugá truco argentino online gratis con un amigo. Truqui conecta dos navegadores en P2P: envido, truco, retruco y vale 4. Sin servidor, sin registro, directo del navegador.">
+  <meta name="keywords" content="truco, truco argentino, truco online, jugar truco, truco gratis, envido, truco P2P, truco multijugador">
+  <meta name="author" content="Truqui">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#000000">
+  <link rel="canonical" href="https://truqui.pages.dev/truqui.html">
+  <link rel="icon" href="img/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="img/favicon.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_AR">
+  <meta property="og:site_name" content="Truqui">
+  <meta property="og:title" content="Truqui — Truco Argentino Online Gratis">
+  <meta property="og:description" content="Truco argentino P2P en el navegador. Compartí un link, conectá con tu rival y jugá envido y truco sin cuenta ni servidor.">
+  <meta property="og:url" content="https://truqui.pages.dev/truqui.html">
+  <meta property="og:image" content="https://truqui.pages.dev/preview.jpeg">
+  <meta property="og:image:alt" content="Captura de pantalla de Truqui, truco argentino online">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Truqui — Truco Argentino Online Gratis">
+  <meta name="twitter:description" content="Jugá truco argentino online P2P. Sin cuenta, sin servidor — solo vos y tu rival.">
+  <meta name="twitter:image" content="https://truqui.pages.dev/preview.jpeg">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Truqui",
+    "alternateName": "Truqui Truco Argentino",
+    "description": "Juego de truco argentino online peer-to-peer. Conectá dos navegadores con un link y jugá envido, truco, retruco y vale 4 sin cuenta ni servidor.",
+    "url": "https://truqui.pages.dev/truqui.html",
+    "image": "https://truqui.pages.dev/preview.jpeg",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any",
+    "browserRequirements": "Requires JavaScript. Requires WebRTC.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "inLanguage": "es-AR",
+    "genre": "Card Game",
+    "playMode": "MultiPlayer",
+    "numberOfPlayers": { "@type": "QuantitativeValue", "minValue": 2, "maxValue": 2 }
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <noscript>
+    <p style="padding:1rem;font-family:sans-serif;text-align:center;background:#000;color:#0ff;">
+      Truqui necesita JavaScript para conectar la partida P2P y repartir las cartas.
+    </p>
+  </noscript>
+  <div id="layout" class="layout">
+    <main id="main-panel">
+      <header id="hero">
+        <p class="welcome">BIENVENIDO A</p>
+        <div class="hero-row">
+          <div class="gaucho">
+            <img src="players.jpg" alt="Dos gauchos argentinos jugando truco en la mesa" class="hero-art" width="280" height="210">
+          </div>
+          <div class="logo-block">
+            <h1 class="logo-cloud">TRUQUI</h1>
+            <p class="logo-sub cyan">TRUCO ARGENTINO</p>
+            <p class="logo-sub magenta">P2P ONLINE GRATIS</p>
+          </div>
+        </div>
+        <p class="seo-intro">
+          Truqui es truco argentino online para dos jugadores: compartís un link, conectás por WebRTC
+          y jugás envido, truco, retruco y vale 4. Sin descargas, sin cuentas y sin servidor de por medio.
+        </p>
+        <div class="steps">
+          <div class="step cyan">
+            <span class="step-icon">◎</span>
+            <p><strong>1.</strong> INICIÁ LA PARTIDA<br>GENERÁ TU LINK</p>
+          </div>
+          <div class="step magenta">
+            <span class="step-icon">◉</span>
+            <p><strong>2.</strong> COMPARTÍ EL LINK<br>RIVAL COPIA RESPUESTA</p>
+          </div>
+          <div class="step cyan">
+            <span class="step-icon">⛓</span>
+            <p><strong>3.</strong> PEGÁ Y CONECTÁ<br>LINK DE RESPUESTA</p>
+          </div>
+          <div class="step magenta">
+            <span class="step-icon">★</span>
+            <p><strong>4.</strong> A JUGAR<br>PRIMERO EN 30 GANA</p>
+          </div>
+        </div>
+        <footer class="tagline">
+          <span class="cyan">♥ SIN SERVIDORES. SIN CUENTAS. SIN DRAMA.</span>
+          <span class="magenta">♥ SOLO VOS, TU RIVAL Y BUEN TRUCO.</span>
+        </footer>
+      </header>
+
+      <section id="lobby" aria-label="Lobby de partida">
+        <p id="status" class="status">TRUCO ARGENTINO P2P</p>
+        <button id="btn-start" type="button" class="btn btn-primary">INICIAR PARTIDA</button>
+
+        <div id="share-box" class="panel" hidden>
+          <p id="share-label" class="label cyan">COMPARTÍ ESTE LINK:</p>
+          <input id="share-link" class="input" type="text" readonly>
+          <button id="btn-copy" type="button" class="btn btn-cyan">COPIAR</button>
+        </div>
+
+        <div id="answer-box" class="panel" hidden>
+          <p id="answer-label" class="label magenta">PEGÁ EL LINK DE RESPUESTA:</p>
+          <input id="answer-link" class="input" type="text" placeholder="http://…?r=…&a=…">
+          <button id="btn-connect" type="button" class="btn btn-magenta">CONECTAR</button>
+        </div>
+
+        <div id="response-box" class="panel" hidden>
+          <p class="label magenta">MANDALE ESTO AL HOST:</p>
+          <input id="response-link" class="input" type="text" readonly>
+          <button id="btn-copy-response" type="button" class="btn btn-magenta">COPIAR RESPUESTA</button>
+        </div>
+      </section>
+
+      <section id="game" hidden aria-label="Mesa de truco">
+        <div id="scores" class="scores"></div>
+        <div id="table">
+          <div id="opponent-area" class="turn-label"></div>
+          <p class="row-label cyan">RIVAL</p>
+          <div id="opponent-hand" class="hand-row"></div>
+          <div id="rival-played" class="played-row"></div>
+          <div id="my-played" class="played-row"></div>
+          <p class="row-label magenta">VOS</p>
+          <div id="my-hand" class="hand-row"></div>
+        </div>
+        <div id="actions" class="actions"></div>
+        <p id="msg" class="game-msg"></p>
+      </section>
+    </main>
+
+    <aside id="chat-panel" class="chat-panel">
+      <h2 class="chat-title cyan">CHAT</h2>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" class="input chat-input" type="text" placeholder="ESCRIBÍ…" maxlength="200" autocomplete="off" disabled>
+        <button type="submit" class="btn btn-cyan btn-sm" disabled id="chat-send">▶</button>
+      </form>
+    </aside>
+  </div>
+
+  <script type="module" src="truqui/app.js"></script>
+</body>
+</html>
